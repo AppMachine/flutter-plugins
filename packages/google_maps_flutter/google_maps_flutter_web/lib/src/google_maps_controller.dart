@@ -50,6 +50,12 @@ class GoogleMapController {
   // The underlying GMap instance. This is the interface with the JS SDK.
   gmaps.GMap? _googleMap;
 
+  // Subscriptions on GMap instance
+  StreamSubscription<gmaps.IconMouseEvent>? _onClickSubscription;
+  StreamSubscription<gmaps.MapMouseEvent>? _onRightClickSubscription;
+  StreamSubscription<void>? _onBoundsChangedSubscription;
+  StreamSubscription<void>? _onIdleSubscription;
+
   // The StreamController used by this controller and the geometry ones.
   final StreamController<MapEvent> _streamController;
 
@@ -189,19 +195,19 @@ class GoogleMapController {
       // Report the map as ready to go the first time the tiles load
       _streamController.add(WebMapReadyEvent(_mapId));
     });
-    map.onClick.listen((event) {
+    _onClickSubscription = map.onClick.listen((event) {
       assert(event.latLng != null);
       _streamController.add(
         MapTapEvent(_mapId, _gmLatLngToLatLng(event.latLng!)),
       );
     });
-    map.onRightclick.listen((event) {
+    _onRightClickSubscription = map.onRightclick.listen((event) {
       assert(event.latLng != null);
       _streamController.add(
         MapLongPressEvent(_mapId, _gmLatLngToLatLng(event.latLng!)),
       );
     });
-    map.onBoundsChanged.listen((event) {
+    _onBoundsChangedSubscription = map.onBoundsChanged.listen((event) {
       if (!_mapIsMoving) {
         _mapIsMoving = true;
         _streamController.add(CameraMoveStartedEvent(_mapId));
@@ -210,7 +216,7 @@ class GoogleMapController {
         CameraMoveEvent(_mapId, _gmViewportToCameraPosition(map)),
       );
     });
-    map.onIdle.listen((event) {
+    _onIdleSubscription = map.onIdle.listen((event) {
       _mapIsMoving = false;
       _streamController.add(CameraIdleEvent(_mapId));
     });
@@ -420,6 +426,10 @@ class GoogleMapController {
     _polygonsController = null;
     _polylinesController = null;
     _markersController = null;
+    _onClickSubscription?.cancel();
+    _onRightClickSubscription?.cancel();
+    _onBoundsChangedSubscription?.cancel();
+    _onIdleSubscription?.cancel();
     _streamController.close();
   }
 }
